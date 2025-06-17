@@ -1,0 +1,46 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/**/*.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/tts",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/voices",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/docs",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/reader.json",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/ifreetime.json",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/v1/audio/speech",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/audio/speech",
+      "dest": "/api/index.js"
+    },
+    {
+      "src": "/",
+      "dest": "/api/index.js"
+    }
+  ],
+  "env": {
+    "API_KEY": "@api_key"
+  }
+}

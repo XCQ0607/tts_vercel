@@ -1,0 +1,27 @@
+{
+  "name": "microsoft-tts-api",
+  "version": "1.0.0",
+  "description": "Microsoft TTS API Server for Vercel",
+  "main": "api/index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step required'",
+    "start": "node api/index.js"
+  },
+  "keywords": [
+    "tts",
+    "text-to-speech",
+    "microsoft",
+    "azure",
+    "api",
+    "vercel"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "engines": {
+    "node": ">=14.x"
+  }
+}

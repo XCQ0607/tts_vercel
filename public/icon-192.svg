@@ -1,0 +1,64 @@
+<svg width="192" height="192" viewBox="0 0 192 192" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="waveGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="rgba(0,0,0,0.3)"/>
+    </filter>
+  </defs>
+  
+  <!-- 主背景圆形 -->
+  <circle cx="96" cy="96" r="88" fill="url(#mainGradient)" filter="url(#shadow)"/>
+  
+  <!-- 内层装饰圆环 -->
+  <circle cx="96" cy="96" r="75" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  
+  <!-- 麦克风主体 -->
+  <rect x="78" y="48" width="36" height="60" rx="18" fill="white" filter="url(#shadow)"/>
+  
+  <!-- 麦克风网格线 -->
+  <g opacity="0.6">
+    <line x1="84" y1="60" x2="108" y2="60" stroke="url(#mainGradient)" stroke-width="2"/>
+    <line x1="84" y1="72" x2="108" y2="72" stroke="url(#mainGradient)" stroke-width="2"/>
+    <line x1="84" y1="84" x2="108" y2="84" stroke="url(#mainGradient)" stroke-width="2"/>
+    <line x1="84" y1="96" x2="108" y2="96" stroke="url(#mainGradient)" stroke-width="2"/>
+  </g>
+  
+  <!-- 麦克风支架 -->
+  <path d="M 96 108 L 96 132" stroke="white" stroke-width="6" stroke-linecap="round" filter="url(#shadow)"/>
+  <path d="M 78 132 L 114 132" stroke="white" stroke-width="6" stroke-linecap="round" filter="url(#shadow)"/>
+  
+  <!-- 左侧音频波形 -->
+  <g opacity="0.9">
+    <path d="M 36 96 L 42 84 L 48 108 L 54 72 L 60 120" stroke="url(#waveGradient)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M 24 96 L 30 90 L 36 102" stroke="url(#waveGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.7"/>
+    <path d="M 12 96 L 18 93 L 24 99" stroke="url(#waveGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
+  </g>
+  
+  <!-- 右侧音频波形 -->
+  <g opacity="0.9">
+    <path d="M 132 96 L 138 84 L 144 108 L 150 72 L 156 120" stroke="url(#waveGradient)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <path d="M 156 96 L 162 90 L 168 102" stroke="url(#waveGradient)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.7"/>
+    <path d="M 168 96 L 174 93 L 180 99" stroke="url(#waveGradient)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.5"/>
+  </g>
+  
+  <!-- 声音传播圆弧 -->
+  <g opacity="0.8">
+    <path d="M 120 78 Q 132 96 120 114" stroke="white" stroke-width="4" fill="none"/>
+    <path d="M 72 78 Q 60 96 72 114" stroke="white" stroke-width="4" fill="none"/>
+    <path d="M 126 72 Q 144 96 126 120" stroke="white" stroke-width="3" fill="none" opacity="0.6"/>
+    <path d="M 66 72 Q 48 96 66 120" stroke="white" stroke-width="3" fill="none" opacity="0.6"/>
+  </g>
+  
+  <!-- 装饰性光点 -->
+  <circle cx="96" cy="78" r="3" fill="rgba(255,255,255,0.8)"/>
+  <circle cx="84" cy="66" r="2" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="108" cy="66" r="2" fill="rgba(255,255,255,0.6)"/>
+</svg>
