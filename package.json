@@ -19,7 +19,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "node-fetch": "^2.6.7"
+    "mp3-parser": "^0.3.0",
+    "node-fetch": "^2.6.7",
+    "web-audio-engine": "^0.13.4"
   },
   "engines": {
     "node": ">=14.x"

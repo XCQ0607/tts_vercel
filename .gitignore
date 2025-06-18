@@ -54,3 +54,5 @@ coverage/
 
 # Original Deno file (keep for reference)
 # deno-tts.ts
+
+.vercel

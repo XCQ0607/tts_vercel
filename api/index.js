@@ -2,6 +2,8 @@
 const fetch = require('node-fetch');
 const crypto = require('crypto');
 
+
+
 // 基本变量定义
 let expiredAt = null;
 let endpoint = null;
@@ -322,17 +324,18 @@ async function handleOpenAITTS(req, res) {
 
 // 主处理函数
 module.exports = async (req, res) => {
-  const url = new URL(req.url, `https://${req.headers.host}`);
-  const path = url.pathname;
-
-  // 设置CORS头
+  // 设置CORS头，允许所有来源访问
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-
+  
+  // 处理预检请求
   if (req.method === 'OPTIONS') {
     return res.status(200).end();
   }
+
+  const url = new URL(req.url, `https://${req.headers.host}`);
+  const path = url.pathname;
 
   // 添加 /docs 路径处理
   if (path === '/docs') {
@@ -575,11 +578,15 @@ module.exports = async (req, res) => {
     const outputFormat = url.searchParams.get('o') || 'audio-24khz-48kbitrate-mono-mp3';
     const download = url.searchParams.get('d') === 'true';
 
+
     try {
       const response = await getVoice(text, voiceName, rate, pitch, style, outputFormat, download);
 
       if (response.status === 200) {
+        // 正常返回音频数据
         res.setHeader('Content-Type', response.headers['Content-Type']);
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        
         if (response.headers['Content-Disposition']) {
           res.setHeader('Content-Disposition', response.headers['Content-Disposition']);
         }
@@ -804,17 +811,7 @@ module.exports = async (req, res) => {
           });
         }
 
-        // 加载音频库
-        Promise.all([
-          loadScript('https://unpkg.com/wavesurfer.js@7.8.2/dist/wavesurfer.js', 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7.8.2/dist/wavesurfer.js'),
-          loadScript('https://unpkg.com/howler@2.2.4/dist/howler.min.js', 'https://cdn.jsdelivr.net/npm/howler@2.2.4/dist/howler.min.js')
-        ]).then(() => {
-          console.log('Audio libraries loaded successfully');
-          window.audioLibrariesLoaded = true;
-        }).catch(() => {
-          console.warn('Some audio libraries failed to load, using fallback');
-          window.audioLibrariesLoaded = true;
-        });
+
       </script>
       <style>
         .loading-spinner {
@@ -888,51 +885,7 @@ module.exports = async (req, res) => {
           to { opacity: 1; transform: translateY(0); }
         }
 
-        /* WaveSurfer 波形样式 */
-        #waveform {
-          cursor: pointer;
-          transition: all 0.2s ease;
-          border-radius: 8px;
-          overflow: hidden;
-          position: relative;
-          width: 100% !important;
-          height: 64px !important;
-        }
 
-        #waveform:hover {
-          box-shadow: 0 4px 12px rgba(59, 130, 246, 0.2);
-        }
-
-        /* WaveSurfer 内部样式覆盖 */
-        #waveform wave {
-          border-radius: 8px;
-          width: 100% !important;
-          height: 100% !important;
-        }
-
-        #waveform canvas {
-          border-radius: 8px;
-          width: 100% !important;
-          height: 100% !important;
-        }
-
-        /* 确保波形容器填满父元素 */
-        #waveform > div {
-          width: 100% !important;
-          height: 100% !important;
-        }
-
-        /* 波形占位符样式 */
-        #waveformPlaceholder {
-          z-index: 1;
-          background: rgba(255, 255, 255, 0.8);
-          border-radius: 8px;
-          backdrop-filter: blur(2px);
-        }
-
-        #waveformPlaceholder.hidden {
-          display: none;
-        }
 
         #playPauseBtn {
           position: relative;
@@ -1166,7 +1119,7 @@ module.exports = async (req, res) => {
                       </optgroup>
 
                       <!-- 中文普通话 -->
-                      <optgroup label="�🇳 中文普通话">
+                      <optgroup label="🇳 中文普通话">
                         <option value="zh-CN-XiaoxiaoNeural">晓晓 (女)</option>
                         <option value="zh-CN-YunxiNeural">云希 (男)</option>
                         <option value="zh-CN-YunjianNeural">云健 (男)</option>
@@ -1406,13 +1359,7 @@ module.exports = async (req, res) => {
 
                 <!-- 播放器主体 -->
                 <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-100">
-                  <!-- 波形可视化区域 -->
-                  <div class="mb-4 relative">
-                    <div id="waveform" class="w-full h-16 rounded-lg bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 overflow-hidden relative"></div>
-                    <div class="absolute top-0 left-0 w-full h-full pointer-events-none flex items-center justify-center text-xs text-gray-400" id="waveformPlaceholder">
-                      点击生成语音后显示波形
-                    </div>
-                  </div>
+
 
                   <!-- 播放控制区域 -->
                   <div class="flex items-center space-x-3 mb-3">
@@ -1431,7 +1378,7 @@ module.exports = async (req, res) => {
                       <span id="currentTime" class="text-xs text-gray-600 font-mono min-w-[35px]">0:00</span>
                       <div class="flex-1 relative">
                         <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div id="progressBar" class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-100" style="width: 0%"></div>
+                          <div id="progressBar" class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" style="width: 0%"></div>
                         </div>
                         <input id="progressSlider" type="range" min="0" max="100" value="0" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
                       </div>
@@ -1894,8 +1841,9 @@ module.exports = async (req, res) => {
             this.volume = 1;
             this.isMuted = false;
             this.currentAudioUrl = null;
-            this.wavesurfer = null;
+
             this.howlerSound = null; // Howler.js 实例
+            this.nativeTimeUpdateId = null; // 原生Audio时间更新ID
 
             this.initializeElements();
             this.bindEvents();
@@ -1919,7 +1867,7 @@ module.exports = async (req, res) => {
             this.audioFormatSelect = document.getElementById('audioFormat');
             this.playbackRateSelect = document.getElementById('playbackRate');
             this.audioInfo = document.getElementById('audioInfo');
-            this.waveformContainer = document.getElementById('waveform');
+
             this.modernPlayer = document.getElementById('modernAudioPlayer');
             this.placeholder = document.getElementById('audioPlaceholder');
           }
@@ -1963,367 +1911,34 @@ module.exports = async (req, res) => {
           }
 
           setupAudioEngine() {
-            // 尝试按优先级初始化音频引擎
-            // 1. 增强Canvas波形 + Howler.js (最稳定)
-            // 2. WaveSurfer.js (如果可用)
-            // 3. 增强Canvas波形 + 原生Audio (备选方案)
-
+            // 设置音频引擎
             console.log('Setting up audio engine...');
-            console.log('WaveSurfer available:', typeof WaveSurfer !== 'undefined');
             console.log('Howler available:', typeof Howl !== 'undefined');
 
-            // 优先使用增强Canvas + Howler方案，因为更稳定
+            // 优先使用Howler.js
             if (typeof Howl !== 'undefined') {
-              console.log('Using Enhanced Canvas + Howler.js for audio playback');
+              console.log('Using Howler.js for audio playback');
               this.audioEngine = 'howler';
-              this.createAdvancedWaveform();
               return;
             }
 
-            if (typeof WaveSurfer !== 'undefined' && this.initializeWaveSurfer()) {
-              console.log('Using WaveSurfer.js for audio playback');
-              this.audioEngine = 'wavesurfer';
-              return;
-            }
-
-            console.log('Using Enhanced Canvas + Native Audio for playback');
+            // 备选方案：原生Audio
+            console.log('Using Native Audio for playback');
             this.audioEngine = 'native';
-            this.createAdvancedWaveform();
           }
 
-          initializeWaveSurfer() {
-            // 检查WaveSurfer是否可用
-            if (typeof WaveSurfer === 'undefined') {
-              console.warn('WaveSurfer.js not loaded');
-              return false;
-            }
 
-            try {
-              // 清空容器
-              this.waveformContainer.innerHTML = '';
 
-              // 创建WaveSurfer实例，使用更简单的配置
-              this.wavesurfer = WaveSurfer.create({
-                container: this.waveformContainer,
-                waveColor: '#94a3b8',
-                progressColor: '#3b82f6',
-                cursorColor: '#1d4ed8',
-                cursorWidth: 2,
-                height: 64,
-                normalize: true,
-                interact: true,
-                fillParent: true,
-                minPxPerSec: 50,
-                // 使用MediaElement后端，更稳定
-                backend: 'MediaElement',
-                mediaControls: false,
-                responsive: true
-              });
-            } catch (error) {
-              console.error('WaveSurfer initialization failed:', error);
-              return false;
-            }
 
-            // 绑定WaveSurfer事件
-            this.wavesurfer.on('ready', () => {
-              this.duration = this.wavesurfer.getDuration();
-              this.durationEl.textContent = this.formatTime(this.duration);
-              this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
-              console.log('WaveSurfer ready, duration:', this.duration);
 
-              // 确保波形容器正确显示
-              const container = this.waveformContainer;
-              if (container) {
-                container.style.width = '100%';
-                container.style.height = '64px';
-              }
 
-              // 强制重新绘制波形
-              setTimeout(() => {
-                this.forceRedrawWaveform();
-              }, 300);
-            });
 
-            this.wavesurfer.on('audioprocess', () => {
-              this.currentTime = this.wavesurfer.getCurrentTime();
-              this.currentTimeEl.textContent = this.formatTime(this.currentTime);
 
-              if (this.duration > 0) {
-                const progress = (this.currentTime / this.duration) * 100;
-                this.progressBar.style.width = progress + '%';
-                this.progressSlider.value = progress;
-              }
-            });
-
-            this.wavesurfer.on('seek', (progress) => {
-              this.currentTime = progress * this.duration;
-              this.currentTimeEl.textContent = this.formatTime(this.currentTime);
-              const progressPercent = progress * 100;
-              this.progressBar.style.width = progressPercent + '%';
-              this.progressSlider.value = progressPercent;
-            });
-
-            this.wavesurfer.on('play', () => {
-              this.isPlaying = true;
-              this.showPauseIcon();
-            });
-
-            this.wavesurfer.on('pause', () => {
-              this.isPlaying = false;
-              this.showPlayIcon();
-            });
-
-            this.wavesurfer.on('finish', () => {
-              this.isPlaying = false;
-              this.showPlayIcon();
-              this.currentTime = 0;
-              this.progressBar.style.width = '0%';
-              this.progressSlider.value = 0;
-              this.currentTimeEl.textContent = '0:00';
-            });
-
-            this.wavesurfer.on('loading', (percent) => {
-              console.log('Loading:', percent + '%');
-              if (percent === 100) {
-                // 确保波形完全加载后重新绘制
-                setTimeout(() => {
-                  this.wavesurfer.drawBuffer();
-                }, 200);
-              }
-            });
-
-            this.wavesurfer.on('error', (e) => {
-              console.error('WaveSurfer error:', e);
-              notify.error('波形加载失败，请重试');
-            });
-
-            return true;
-          }
-
-          initializeHowler() {
-            // 检查Howler.js是否可用
-            if (typeof Howl === 'undefined') {
-              console.warn('Howler.js not loaded');
-              return false;
-            }
-
-            try {
-              // 创建增强波形显示
-              this.createEnhancedWaveform();
-              return true;
-            } catch (error) {
-              console.error('Howler initialization failed:', error);
-              return false;
-            }
-          }
-
-          createAdvancedWaveform() {
-            // 创建高级波形可视化器
-            this.waveformContainer.innerHTML = \`
-              <div class="w-full h-16 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200 relative overflow-hidden">
-                <canvas id="advancedWaveform" class="w-full h-full absolute top-0 left-0"></canvas>
-                <canvas id="progressCanvas" class="w-full h-full absolute top-0 left-0 pointer-events-none"></canvas>
-                <div class="absolute inset-0 flex items-center justify-center text-xs text-gray-400 pointer-events-none" id="waveformStatus">
-                  准备中...
-                </div>
-              </div>
-            \`;
-
-            this.setupAdvancedWaveform();
-          }
-
-          setupAdvancedWaveform() {
-            this.waveCanvas = document.getElementById('advancedWaveform');
-            this.progressCanvas = document.getElementById('progressCanvas');
-            this.waveformStatus = document.getElementById('waveformStatus');
-
-            if (!this.waveCanvas || !this.progressCanvas) {
-              console.error('Canvas elements not found');
-              return;
-            }
-
-            this.waveCtx = this.waveCanvas.getContext('2d');
-            this.progressCtx = this.progressCanvas.getContext('2d');
-            this.animationId = null;
-            this.waveData = [];
-            this.isWaveformReady = false;
-            this.currentProgress = 0;
-
-            // 设置canvas尺寸
-            this.resizeAdvancedCanvas();
-
-            // 监听窗口大小变化
-            window.addEventListener('resize', () => this.resizeAdvancedCanvas());
-
-            // 生成波形数据
-            this.generateAdvancedWaveData();
-
-            // 绘制初始波形
-            this.drawStaticWaveform();
-
-            // 添加点击事件
-            this.waveCanvas.addEventListener('click', (e) => this.handleWaveformClick(e));
-
-            this.waveformStatus.textContent = '点击生成语音后显示波形';
-            this.isWaveformReady = true;
-          }
-
-          resizeAdvancedCanvas() {
-            if (!this.waveCanvas || !this.progressCanvas) return;
-
-            const rect = this.waveCanvas.getBoundingClientRect();
-            const dpr = window.devicePixelRatio || 1;
-
-            // 设置波形Canvas
-            this.waveCanvas.width = rect.width * dpr;
-            this.waveCanvas.height = rect.height * dpr;
-            this.waveCtx.scale(dpr, dpr);
-            this.waveCanvas.style.width = rect.width + 'px';
-            this.waveCanvas.style.height = rect.height + 'px';
-
-            // 设置进度Canvas
-            this.progressCanvas.width = rect.width * dpr;
-            this.progressCanvas.height = rect.height * dpr;
-            this.progressCtx.scale(dpr, dpr);
-            this.progressCanvas.style.width = rect.width + 'px';
-            this.progressCanvas.style.height = rect.height + 'px';
-
-            // 重新绘制
-            if (this.isWaveformReady) {
-              this.drawStaticWaveform();
-              this.drawProgress();
-            }
-          }
-
-          generateAdvancedWaveData() {
-            const width = this.waveCanvas ? this.waveCanvas.width / (window.devicePixelRatio || 1) : 300;
-            const barCount = Math.floor(width / 3); // 每3像素一个柱子
-
-            this.waveData = Array.from({length: barCount}, (_, i) => {
-              // 创建更自然的波形数据
-              const baseHeight = 0.3 + Math.sin(i * 0.1) * 0.2; // 基础正弦波
-              const noise = (Math.random() - 0.5) * 0.3; // 添加噪声
-              const height = Math.max(0.1, Math.min(0.9, baseHeight + noise));
-
-              return {
-                height: height,
-                targetHeight: height,
-                speed: Math.random() * 0.02 + 0.01,
-                baseHeight: height,
-                animationPhase: Math.random() * Math.PI * 2
-              };
-            });
-          }
-
-          drawStaticWaveform() {
-            if (!this.waveCtx || !this.waveData.length) return;
-
-            const width = this.waveCanvas.width / (window.devicePixelRatio || 1);
-            const height = this.waveCanvas.height / (window.devicePixelRatio || 1);
-
-            // 清空画布
-            this.waveCtx.clearRect(0, 0, width, height);
-
-            // 绘制波形背景
-            this.waveCtx.fillStyle = '#e2e8f0'; // 浅灰色
-            this.waveData.forEach((bar, index) => {
-              const x = index * 3;
-              const barHeight = bar.height * height * 0.8;
-              const y = (height - barHeight) / 2;
-
-              this.waveCtx.fillRect(x, y, 2, barHeight);
-            });
-          }
-
-          drawProgress() {
-            if (!this.progressCtx) return;
-
-            const width = this.progressCanvas.width / (window.devicePixelRatio || 1);
-            const height = this.progressCanvas.height / (window.devicePixelRatio || 1);
-
-            // 清空进度画布
-            this.progressCtx.clearRect(0, 0, width, height);
-
-            if (this.currentProgress > 0 && this.waveData.length) {
-              // 绘制进度波形
-              const progressWidth = width * (this.currentProgress / 100);
-              this.progressCtx.fillStyle = '#3b82f6'; // 蓝色进度
-
-              this.waveData.forEach((bar, index) => {
-                const x = index * 3;
-                if (x < progressWidth) {
-                  const barHeight = bar.height * height * 0.8;
-                  const y = (height - barHeight) / 2;
-
-                  this.progressCtx.fillRect(x, y, 2, barHeight);
-                }
-              });
-            }
-          }
-
-          startAdvancedAnimation() {
-            if (!this.waveCtx) return;
-
-            const animate = () => {
-              if (this.isPlaying) {
-                this.updateAnimatedWaveform();
-                this.animationId = requestAnimationFrame(animate);
-              }
-            };
-
-            animate();
-          }
-
-          updateAnimatedWaveform() {
-            if (!this.waveCtx || !this.waveData.length) return;
-
-            const width = this.waveCanvas.width / (window.devicePixelRatio || 1);
-            const height = this.waveCanvas.height / (window.devicePixelRatio || 1);
-
-            // 清空画布
-            this.waveCtx.clearRect(0, 0, width, height);
-
-            // 更新动画数据
-            this.waveData.forEach(bar => {
-              bar.animationPhase += 0.1;
-              const animationFactor = Math.sin(bar.animationPhase) * 0.2;
-              bar.targetHeight = bar.baseHeight + animationFactor;
-
-              // 平滑过渡
-              const diff = bar.targetHeight - bar.height;
-              bar.height += diff * 0.1;
-            });
-
-            // 绘制动画波形
-            this.waveCtx.fillStyle = '#94a3b8';
-            this.waveData.forEach((bar, index) => {
-              const x = index * 3;
-              const barHeight = Math.max(2, bar.height * height * 0.8);
-              const y = (height - barHeight) / 2;
-
-              this.waveCtx.fillRect(x, y, 2, barHeight);
-            });
-          }
-
-          handleWaveformClick(e) {
-            if (!this.isWaveformReady || !this.duration) return;
-
-            const rect = this.waveCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const progress = (x / rect.width) * 100;
-
-            // 更新进度
-            this.updateProgress(progress);
-
-            // 跳转到指定位置
-            this.seek(progress);
-          }
 
           updateProgress(progress) {
             this.currentProgress = Math.max(0, Math.min(100, progress));
-            this.drawProgress();
 
-            // 更新其他进度显示
+            // 更新进度条 - 移除过渡效果以获得更平滑的更新
             if (this.progressBar) {
               this.progressBar.style.width = this.currentProgress + '%';
             }
@@ -2341,49 +1956,9 @@ module.exports = async (req, res) => {
             }
           }
 
-          stopAdvancedAnimation() {
-            if (this.animationId) {
-              cancelAnimationFrame(this.animationId);
-              this.animationId = null;
-            }
-          }
 
-          // 重新调整波形大小
-          resizeWaveform() {
-            if (this.wavesurfer) {
-              // 延迟调整大小，确保容器已经渲染
-              setTimeout(() => {
-                this.wavesurfer.drawBuffer();
-              }, 100);
-            } else if (this.waveCanvas) {
-              this.resizeAdvancedCanvas();
-              this.generateAdvancedWaveData();
-              this.drawStaticWaveform();
-            }
-          }
 
-          // 强制重新绘制波形
-          forceRedrawWaveform() {
-            if (this.wavesurfer && this.wavesurfer.isReady) {
-              try {
-                // 多种方法确保波形正确显示
-                this.wavesurfer.drawBuffer();
-                this.wavesurfer.drawer.fireEvent('redraw');
 
-                // 如果还是不显示，尝试重新设置容器大小
-                const container = this.waveformContainer;
-                if (container) {
-                  const rect = container.getBoundingClientRect();
-                  if (rect.width > 0) {
-                    this.wavesurfer.drawer.setWidth(rect.width);
-                    this.wavesurfer.drawBuffer();
-                  }
-                }
-              } catch (error) {
-                console.warn('Force redraw failed:', error);
-              }
-            }
-          }
 
           // 音频格式转换方法
           async convertToMp3(audioBuffer) {
@@ -2451,28 +2026,13 @@ module.exports = async (req, res) => {
           loadAudio(url) {
             this.currentAudioUrl = url;
 
-            // 隐藏波形占位符
-            const placeholder = document.getElementById('waveformPlaceholder');
-            if (placeholder) {
-              placeholder.classList.add('hidden');
-            }
-
-            // 更新波形状态
-            if (this.waveformStatus) {
-              this.waveformStatus.textContent = '加载中...';
-            }
-
-            if (this.audioEngine === 'wavesurfer' && this.wavesurfer) {
-              // 使用WaveSurfer加载音频
-              console.log('Loading audio with WaveSurfer:', url);
-              this.wavesurfer.load(url);
-            } else if (this.audioEngine === 'howler' && typeof Howl !== 'undefined') {
-              // 使用Howler.js + 高级Canvas波形
-              console.log('Loading audio with Howler.js + Advanced Canvas:', url);
+            if (this.audioEngine === 'howler' && typeof Howl !== 'undefined') {
+              console.log('Loading audio with Howler.js:', url);
               this.loadWithHowler(url);
             } else {
-              // 使用原生Audio + 高级Canvas波形
-              console.log('Loading audio with Native Audio + Advanced Canvas:', url);
+              console.log('Loading audio with Native Audio:', url);
+              // 确保使用原生音频时设置正确的引擎
+              this.audioEngine = 'native';
               this.loadWithNativeAudio(url);
             }
 
@@ -2493,9 +2053,7 @@ module.exports = async (req, res) => {
                 this.durationEl.textContent = this.formatTime(this.duration);
                 this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
 
-                if (this.waveformStatus) {
-                  this.waveformStatus.textContent = '点击播放';
-                }
+
 
                 console.log('Howler audio loaded, duration:', this.duration);
               },
@@ -2503,25 +2061,20 @@ module.exports = async (req, res) => {
                 this.isPlaying = true;
                 this.showPauseIcon();
                 this.startHowlerTimeUpdate();
-                this.startAdvancedAnimation();
               },
               onpause: () => {
                 this.isPlaying = false;
                 this.showPlayIcon();
-                this.stopAdvancedAnimation();
               },
               onend: () => {
                 this.isPlaying = false;
                 this.showPlayIcon();
-                this.stopAdvancedAnimation();
                 this.updateProgress(0);
               },
               onerror: (id, error) => {
                 console.error('Howler error:', error);
                 notify.error('音频加载失败，请重试');
-                if (this.waveformStatus) {
-                  this.waveformStatus.textContent = '加载失败';
-                }
+
               }
             });
           }
@@ -2533,23 +2086,19 @@ module.exports = async (req, res) => {
               this.duration = this.audio.duration;
               this.durationEl.textContent = this.formatTime(this.duration);
               this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
-
-              if (this.waveformStatus) {
-                this.waveformStatus.textContent = '点击播放';
-              }
             }, { once: true });
 
+            this.audio.addEventListener('ended', () => {
+              this.updateProgress(0);
+              this.stopNativeTimeUpdate();
+            });
+
             this.audio.addEventListener('play', () => {
-              this.startAdvancedAnimation();
+              this.startNativeTimeUpdate();
             });
 
             this.audio.addEventListener('pause', () => {
-              this.stopAdvancedAnimation();
-            });
-
-            this.audio.addEventListener('ended', () => {
-              this.stopAdvancedAnimation();
-              this.updateProgress(0);
+              this.stopNativeTimeUpdate();
             });
           }
 
@@ -2583,10 +2132,37 @@ module.exports = async (req, res) => {
             updateTime();
           }
 
+          startNativeTimeUpdate() {
+            if (this.nativeTimeUpdateId) {
+              cancelAnimationFrame(this.nativeTimeUpdateId);
+            }
+
+            const updateTime = () => {
+              if (!this.audio.paused && !this.audio.ended) {
+                this.currentTime = this.audio.currentTime;
+                this.currentTimeEl.textContent = this.formatTime(this.currentTime);
+
+                if (this.duration > 0) {
+                  const progress = (this.currentTime / this.duration) * 100;
+                  this.updateProgress(progress);
+                }
+
+                this.nativeTimeUpdateId = requestAnimationFrame(updateTime);
+              }
+            };
+
+            updateTime();
+          }
+
+          stopNativeTimeUpdate() {
+            if (this.nativeTimeUpdateId) {
+              cancelAnimationFrame(this.nativeTimeUpdateId);
+              this.nativeTimeUpdateId = null;
+            }
+          }
+
           togglePlayPause() {
-            if (this.wavesurfer) {
-              this.wavesurfer.playPause();
-            } else if (this.howlerSound) {
+            if (this.audioEngine === 'howler' && this.howlerSound) {
               if (this.isPlaying) {
                 this.howlerSound.pause();
               } else {
@@ -2602,14 +2178,7 @@ module.exports = async (req, res) => {
           }
 
           seek(value) {
-            if (this.wavesurfer && this.wavesurfer.isReady) {
-              const progress = value / 100;
-              this.wavesurfer.seekTo(progress);
-
-              // 手动更新时间显示
-              this.currentTime = progress * this.duration;
-              this.currentTimeEl.textContent = this.formatTime(this.currentTime);
-            } else if (this.howlerSound) {
+            if (this.audioEngine === 'howler' && this.howlerSound) {
               const seekTime = (value / 100) * this.duration;
               this.howlerSound.seek(seekTime);
               this.currentTime = seekTime;
@@ -2622,9 +2191,7 @@ module.exports = async (req, res) => {
           setVolume(volume) {
             this.volume = volume;
 
-            if (this.wavesurfer) {
-              this.wavesurfer.setVolume(volume);
-            } else if (this.howlerSound) {
+            if (this.audioEngine === 'howler' && this.howlerSound) {
               this.howlerSound.volume(volume);
             } else {
               this.audio.volume = volume;
@@ -2641,9 +2208,7 @@ module.exports = async (req, res) => {
 
           toggleMute() {
             if (this.isMuted) {
-              if (this.wavesurfer) {
-                this.wavesurfer.setVolume(this.volume);
-              } else if (this.howlerSound) {
+              if (this.audioEngine === 'howler' && this.howlerSound) {
                 this.howlerSound.volume(this.volume);
               } else {
                 this.audio.volume = this.volume;
@@ -2652,9 +2217,7 @@ module.exports = async (req, res) => {
               this.showVolumeIcon();
               this.isMuted = false;
             } else {
-              if (this.wavesurfer) {
-                this.wavesurfer.setVolume(0);
-              } else if (this.howlerSound) {
+              if (this.audioEngine === 'howler' && this.howlerSound) {
                 this.howlerSound.volume(0);
               } else {
                 this.audio.volume = 0;
@@ -2668,9 +2231,7 @@ module.exports = async (req, res) => {
           setPlaybackRate(rate) {
             const playbackRate = parseFloat(rate);
 
-            if (this.wavesurfer) {
-              this.wavesurfer.setPlaybackRate(playbackRate);
-            } else if (this.howlerSound) {
+            if (this.audioEngine === 'howler' && this.howlerSound) {
               this.howlerSound.rate(playbackRate);
             } else {
               this.audio.playbackRate = playbackRate;
@@ -2773,15 +2334,15 @@ module.exports = async (req, res) => {
           }
 
           onLoadedMetadata() {
-            if (!this.wavesurfer) {
-              this.duration = this.audio.duration;
-              this.durationEl.textContent = this.formatTime(this.duration);
-              this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
-            }
+            this.duration = this.audio.duration;
+            this.durationEl.textContent = this.formatTime(this.duration);
+            this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
           }
 
           onTimeUpdate() {
-            if (this.audioEngine === 'native' && !this.wavesurfer) {
+            // 这个方法现在主要作为备用，主要的时间更新通过requestAnimationFrame处理
+            // 只在requestAnimationFrame不工作时才使用
+            if (this.audioEngine === 'native' && !this.nativeTimeUpdateId) {
               this.currentTime = this.audio.currentTime;
               this.currentTimeEl.textContent = this.formatTime(this.currentTime);
 
@@ -2795,16 +2356,21 @@ module.exports = async (req, res) => {
           onPlay() {
             this.isPlaying = true;
             this.showPauseIcon();
+            if (this.audioEngine === 'native') {
+              this.startNativeTimeUpdate();
+            }
           }
 
           onPause() {
             this.isPlaying = false;
             this.showPlayIcon();
+            this.stopNativeTimeUpdate();
           }
 
           onEnded() {
             this.isPlaying = false;
             this.showPlayIcon();
+            this.stopNativeTimeUpdate();
             this.currentTime = 0;
             this.progressBar.style.width = '0%';
             this.progressSlider.value = 0;
@@ -3141,10 +2707,7 @@ module.exports = async (req, res) => {
         const modernPlayer = new ModernAudioPlayer();
         const ttsHistory = new TTSHistory();
 
-        // 监听窗口大小变化
-        window.addEventListener('resize', () => {
-          modernPlayer.resizeWaveform();
-        });
+
 
         // 工具函数
         function updateTextCount() {
@@ -3267,6 +2830,7 @@ module.exports = async (req, res) => {
           setLoading(true);
 
           try {
+            // 直接请求音频
             const response = await fetch(url);
 
             if (!response.ok) {
@@ -3274,8 +2838,9 @@ module.exports = async (req, res) => {
               throw new Error(\`请求失败: \${response.status} \${errorText}\`);
             }
 
-            const blob = await response.blob();
-            const audioUrl = URL.createObjectURL(blob);
+            // 获取音频数据
+            const audioBlob = await response.blob();
+            const audioUrl = URL.createObjectURL(audioBlob);
 
             // 添加到历史记录
             const audioKey = ttsHistory.addToHistory({
@@ -3283,7 +2848,7 @@ module.exports = async (req, res) => {
             });
 
             // 保存音频到本地存储
-            ttsHistory.saveAudio(audioKey, blob);
+            ttsHistory.saveAudio(audioKey, audioBlob);
 
             // 播放音频
             modernPlayer.loadAudio(audioUrl);
@@ -3303,6 +2868,25 @@ module.exports = async (req, res) => {
             setLoading(false);
           }
         });
+
+        // Base64转Blob函数
+        function base64ToBlob(base64, contentType) {
+          const byteCharacters = atob(base64);
+          const byteArrays = [];
+
+          for (let offset = 0; offset < byteCharacters.length; offset += 512) {
+            const slice = byteCharacters.slice(offset, offset + 512);
+            const byteNumbers = new Array(slice.length);
+
+            for (let i = 0; i < slice.length; i++) {
+              byteNumbers[i] = slice.charCodeAt(i);
+            }
+
+            byteArrays.push(new Uint8Array(byteNumbers));
+          }
+
+          return new Blob(byteArrays, { type: contentType });
+        }
 
         // 初始化文本计数
         updateTextCount();
