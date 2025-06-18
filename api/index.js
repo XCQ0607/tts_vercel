@@ -337,6 +337,48 @@ module.exports = async (req, res) => {
   const url = new URL(req.url, `https://${req.headers.host}`);
   const path = url.pathname;
 
+  // 处理静态文件请求
+  if (path === '/favicon.svg' || path === '/favicon-16x16.svg' || path === '/favicon-32x32.svg' || path === '/icon-192.svg' || path === '/icon-512.svg' || path === '/sw.js') {
+    const fs = require('fs');
+    const pathModule = require('path');
+
+    try {
+      const filePath = pathModule.join(process.cwd(), 'public', path.substring(1));
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+
+      // 根据文件类型设置 Content-Type
+      if (path === '/sw.js') {
+        res.setHeader('Content-Type', 'application/javascript');
+        res.setHeader('Cache-Control', 'no-cache'); // Service Worker 不缓存
+      } else {
+        res.setHeader('Content-Type', 'image/svg+xml');
+        res.setHeader('Cache-Control', 'public, max-age=31536000'); // 缓存一年
+      }
+
+      return res.status(200).send(fileContent);
+    } catch (error) {
+      console.error('Static file error:', error);
+      return res.status(404).send('File not found');
+    }
+  }
+
+  // 处理 manifest.json
+  if (path === '/manifest.json') {
+    const fs = require('fs');
+    const pathModule = require('path');
+
+    try {
+      const filePath = pathModule.join(process.cwd(), 'manifest.json');
+      const fileContent = fs.readFileSync(filePath, 'utf8');
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Cache-Control', 'public, max-age=86400'); // 缓存一天
+      return res.status(200).send(fileContent);
+    } catch (error) {
+      console.error('Manifest file error:', error);
+      return res.status(404).send('File not found');
+    }
+  }
+
   // 添加 /docs 路径处理
   if (path === '/docs') {
     const docsHtml = `<!DOCTYPE html>
@@ -788,28 +830,10 @@ module.exports = async (req, res) => {
       <meta name="apple-mobile-web-app-title" content="TTS API">
 
       <script src="https://cdn.tailwindcss.com"></script>
-      <!-- 音频播放器库 - 使用多个CDN确保加载成功 -->
-      <script>
-        // 动态加载音频库
-        function loadScript(src, fallbackSrc) {
-          return new Promise((resolve, reject) => {
-            const script = document.createElement('script');
-            script.src = src;
-            script.onload = resolve;
-            script.onerror = () => {
-              if (fallbackSrc) {
-                const fallbackScript = document.createElement('script');
-                fallbackScript.src = fallbackSrc;
-                fallbackScript.onload = resolve;
-                fallbackScript.onerror = reject;
-                document.head.appendChild(fallbackScript);
-              } else {
-                reject();
-              }
-            };
-            document.head.appendChild(script);
-          });
-        }
+
+      <!-- Plyr.js 现代化音频播放器 -->
+      <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+      <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
 
 
       </script>
@@ -875,7 +899,206 @@ module.exports = async (req, res) => {
           transition: all 0.3s ease-in-out;
         }
 
-        /* 现代化播放器样式 */
+        /* Plyr.js 播放器样式自定义 */
+        .plyr {
+          border-radius: 12px;
+          overflow: visible; /* 允许菜单溢出 */
+          position: relative;
+        }
+
+        .plyr--audio .plyr__controls {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+          border-radius: 12px;
+          padding: 16px;
+          position: relative;
+          overflow: visible; /* 允许菜单溢出 */
+        }
+
+        .plyr__control--overlaid {
+          background: rgba(255, 255, 255, 0.9);
+        }
+
+        .plyr__control:hover {
+          background: rgba(255, 255, 255, 0.2);
+        }
+
+        .plyr__progress__buffer {
+          color: rgba(255, 255, 255, 0.3);
+        }
+
+        .plyr__progress__played {
+          color: #fff;
+        }
+
+        .plyr__volume {
+          color: #fff;
+        }
+
+        .plyr__time {
+          color: rgba(255, 255, 255, 0.9);
+        }
+
+        /* 修复设置菜单显示问题 */
+        .plyr__menu {
+          z-index: 1000 !important;
+          position: absolute !important;
+          background: white !important;
+          border-radius: 8px !important;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15) !important;
+          border: 1px solid rgba(0, 0, 0, 0.1) !important;
+          overflow: visible !important;
+          /* 桌面版也放在上方 */
+          bottom: 50px !important;
+          top: auto !important;
+          right: 8px !important;
+          min-width: 120px !important;
+        }
+
+        .plyr__menu__container {
+          background: white !important;
+          border-radius: 8px !important;
+          overflow: visible !important;
+          backdrop-filter: blur(10px) !important;
+          border: 1px solid rgba(255, 255, 255, 0.2) !important;
+        }
+
+        .plyr__control--pressed .plyr__menu {
+          display: block !important;
+          opacity: 1 !important;
+          transform: translateY(0) !important;
+          animation: menuSlideIn 0.2s ease-out !important;
+        }
+
+        /* 菜单动画 */
+        @keyframes menuSlideIn {
+          from {
+            opacity: 0;
+            transform: translateY(10px) scale(0.95);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        /* 菜单箭头指示器 */
+        .plyr__menu::after {
+          content: '';
+          position: absolute;
+          bottom: -8px;
+          right: 20px;
+          width: 0;
+          height: 0;
+          border-left: 8px solid transparent;
+          border-right: 8px solid transparent;
+          border-top: 8px solid white;
+          filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+        }
+
+        .plyr__menu [role="menuitemradio"] {
+          color: #374151 !important;
+          padding: 10px 16px !important;
+          font-size: 14px !important;
+          transition: all 0.2s ease !important;
+          border-radius: 4px !important;
+          margin: 2px 4px !important;
+        }
+
+        .plyr__menu [role="menuitemradio"]:hover {
+          background: #f3f4f6 !important;
+          transform: translateX(2px) !important;
+        }
+
+        .plyr__menu [role="menuitemradio"][aria-checked="true"] {
+          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+          color: white !important;
+          font-weight: 500 !important;
+        }
+
+        /* 确保播放器容器不会裁剪菜单 */
+        #modernAudioPlayer {
+          overflow: visible !important;
+          position: relative;
+          z-index: 10;
+        }
+
+        #audioContainer {
+          overflow: visible !important;
+          position: relative;
+        }
+
+        /* 移动端菜单优化 */
+        @media (max-width: 768px) {
+          .plyr__menu {
+            right: 8px !important;
+            left: auto !important;
+            top: auto !important;
+            bottom: 55px !important; /* 在控制栏上方显示 */
+            min-width: 100px !important;
+            max-width: 140px !important;
+            transform: none !important;
+          }
+
+          .plyr__menu [role="menuitemradio"] {
+            padding: 12px 14px !important;
+            font-size: 14px !important;
+            touch-action: manipulation;
+            white-space: nowrap !important;
+            margin: 1px 2px !important;
+          }
+
+          /* 移动端隐藏音量控制，避免重叠 */
+          .plyr--audio .plyr__controls .plyr__volume {
+            display: none !important;
+          }
+
+          /* 调整移动端控制栏布局 */
+          .plyr--audio .plyr__controls {
+            padding: 12px 16px !important;
+          }
+
+          /* 确保设置按钮有足够的触摸区域 */
+          .plyr__control--pressed,
+          .plyr__control[aria-expanded="true"] {
+            background: rgba(255, 255, 255, 0.3) !important;
+          }
+        }
+
+        /* 确保菜单在所有容器之上 */
+        .plyr__menu,
+        .plyr__menu__container {
+          z-index: 9999 !important;
+        }
+
+        /* 超小屏幕优化 */
+        @media (max-width: 480px) {
+          .plyr__menu {
+            right: 4px !important;
+            bottom: 55px !important;
+            min-width: 90px !important;
+            max-width: 120px !important;
+          }
+
+          .plyr__menu [role="menuitemradio"] {
+            padding: 8px 10px !important;
+            font-size: 13px !important;
+          }
+
+          .plyr--audio .plyr__controls {
+            padding: 10px 12px !important;
+          }
+
+          /* 确保进度条在小屏幕上有足够的触摸区域 */
+          .plyr__progress {
+            height: 8px !important;
+          }
+
+          .plyr__progress input[type="range"] {
+            height: 20px !important;
+          }
+        }
+
+        /* 简化的样式 */
         #modernAudioPlayer {
           animation: fadeIn 0.5s ease-in-out;
         }
@@ -885,146 +1108,7 @@ module.exports = async (req, res) => {
           to { opacity: 1; transform: translateY(0); }
         }
 
-
-
-        #playPauseBtn {
-          position: relative;
-          overflow: hidden;
-        }
-
-        #playPauseBtn::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 0;
-          height: 0;
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          transition: all 0.3s ease;
-        }
-
-        #playPauseBtn:active::before {
-          width: 100%;
-          height: 100%;
-        }
-
-        /* 自定义滑块样式 */
-        input[type="range"] {
-          -webkit-appearance: none;
-          appearance: none;
-          background: transparent;
-          cursor: pointer;
-        }
-
-        input[type="range"]::-webkit-slider-track {
-          background: transparent;
-        }
-
-        input[type="range"]::-webkit-slider-thumb {
-          -webkit-appearance: none;
-          appearance: none;
-          height: 12px;
-          width: 12px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-          transition: all 0.2s ease;
-        }
-
-        input[type="range"]::-webkit-slider-thumb:hover {
-          transform: scale(1.2);
-          box-shadow: 0 4px 8px rgba(59, 130, 246, 0.4);
-        }
-
-        input[type="range"]::-moz-range-thumb {
-          height: 12px;
-          width: 12px;
-          border-radius: 50%;
-          background: #3b82f6;
-          cursor: pointer;
-          border: 2px solid #ffffff;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-          transition: all 0.2s ease;
-        }
-
-        /* 播放器按钮悬停效果 */
-        .player-btn {
-          transition: all 0.2s ease;
-        }
-
-        .player-btn:hover {
-          transform: translateY(-1px);
-          box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
-        }
-
-        /* 自定义选择器样式 */
-        select {
-          background-image: none;
-        }
-
-        select:focus {
-          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-        }
-
-        /* 选择器选项悬停效果 */
-        select option {
-          padding: 8px 12px;
-        }
-
-        select option:hover {
-          background-color: #f3f4f6;
-        }
-
-        /* 现代化下载按钮动画 */
-        #downloadAudioBtn {
-          position: relative;
-          overflow: hidden;
-        }
-
-        #downloadAudioBtn::before {
-          content: '';
-          position: absolute;
-          top: 50%;
-          left: 50%;
-          width: 0;
-          height: 0;
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 50%;
-          transform: translate(-50%, -50%);
-          transition: all 0.3s ease;
-        }
-
-        #downloadAudioBtn:active::before {
-          width: 100%;
-          height: 100%;
-        }
-
-        /* 现代化开关样式 */
-        .modern-toggle input:checked + .toggle-bg {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          box-shadow: 0 0 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .modern-toggle input:checked + .toggle-bg .toggle-dot {
-          transform: translateX(28px);
-          background: #ffffff;
-          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-        }
-
-        .modern-toggle input:checked + .toggle-bg .download-icon {
-          color: #667eea;
-          transform: scale(1.1);
-        }
-
-        .modern-toggle:hover .toggle-bg {
-          box-shadow: 0 0 15px rgba(102, 126, 234, 0.2);
-        }
-
-        /* 现代化通知样式 */
+        /* 通知样式 */
         .notification {
           position: fixed;
           top: 20px;
@@ -1039,7 +1123,6 @@ module.exports = async (req, res) => {
           padding: 16px 20px;
           transform: translateX(100%);
           transition: all 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-          backdrop-filter: blur(10px);
         }
 
         .notification.show {
@@ -1048,34 +1131,54 @@ module.exports = async (req, res) => {
 
         .notification.success {
           border-left-color: #10b981;
-          background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(255, 255, 255, 0.9) 100%);
         }
 
         .notification.error {
           border-left-color: #ef4444;
-          background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(255, 255, 255, 0.9) 100%);
         }
 
         .notification.warning {
           border-left-color: #f59e0b;
-          background: linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(255, 255, 255, 0.9) 100%);
         }
 
         .notification.info {
           border-left-color: #3b82f6;
-          background: linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(255, 255, 255, 0.9) 100%);
         }
 
-        /* 响应式调整 */
-        @media (max-width: 768px) {
-          .grid.grid-cols-1.md\\:grid-cols-2 {
-            grid-template-columns: 1fr;
+          .mobile-download-container button {
+            width: 48px;
+            height: 48px;
+            min-width: 48px;
           }
-          .notification {
-            max-width: 90vw;
-            min-width: 280px;
-            top: 10px;
-            right: 10px;
+
+          /* 超小屏幕播放速度 */
+          .mobile-speed-container {
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            gap: 10px;
+          }
+
+          .mobile-speed-container select {
+            padding: 10px 14px;
+            font-size: 14px;
+            min-width: 90px;
+          }
+
+          .mobile-speed-container > div:first-child {
+            margin-bottom: 6px;
+          }
+
+          /* 超小屏幕播放按钮 */
+          #playPauseBtn {
+            width: 48px;
+            height: 48px;
+          }
+
+          /* 超小屏幕静音按钮 */
+          #muteBtn {
+            min-width: 36px;
+            min-height: 36px;
           }
         }
       </style>
@@ -1352,115 +1455,45 @@ module.exports = async (req, res) => {
               语音输出
             </h3>
             <div id="audioContainer">
-
-              <!-- 现代化音频播放器 -->
-              <div id="modernAudioPlayer" class="hidden">
-                <audio id="audioElement" preload="metadata"></audio>
-
-                <!-- 播放器主体 -->
-                <div class="bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-100">
-
-
-                  <!-- 播放控制区域 -->
-                  <div class="flex items-center space-x-3 mb-3">
-                    <!-- 播放/暂停按钮 -->
-                    <button id="playPauseBtn" class="flex-shrink-0 w-12 h-12 bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full flex items-center justify-center hover:from-blue-600 hover:to-purple-600 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105">
-                      <svg id="playIcon" class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M8 5v14l11-7z"/>
-                      </svg>
-                      <svg id="pauseIcon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
-                      </svg>
-                    </button>
-
-                    <!-- 进度条 -->
-                    <div class="flex-1 flex items-center space-x-2">
-                      <span id="currentTime" class="text-xs text-gray-600 font-mono min-w-[35px]">0:00</span>
-                      <div class="flex-1 relative">
-                        <div class="h-2 bg-gray-200 rounded-full overflow-hidden">
-                          <div id="progressBar" class="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full" style="width: 0%"></div>
-                        </div>
-                        <input id="progressSlider" type="range" min="0" max="100" value="0" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                      </div>
-                      <span id="duration" class="text-xs text-gray-600 font-mono min-w-[35px]">0:00</span>
-                    </div>
-
-                    <!-- 音量控制 -->
-                    <div class="flex items-center space-x-2">
-                      <button id="muteBtn" class="text-gray-600 hover:text-gray-800 transition-colors">
-                        <svg id="volumeIcon" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                        </svg>
-                        <svg id="muteIcon" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24">
-                          <path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/>
-                        </svg>
-                      </button>
-                      <div class="w-16 relative">
-                        <div class="h-1 bg-gray-200 rounded-full">
-                          <div id="volumeBar" class="h-full bg-gradient-to-r from-green-400 to-blue-500 rounded-full" style="width: 100%"></div>
-                        </div>
-                        <input id="volumeSlider" type="range" min="0" max="100" value="100" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                      </div>
-                    </div>
-
-                    <!-- 格式选择和下载按钮 -->
-                    <div class="flex items-center space-x-2">
-                      <!-- 格式选择 -->
-                      <select id="audioFormat" class="px-2 py-1 text-xs bg-white border border-gray-300 rounded-md focus:ring-1 focus:ring-blue-500 focus:border-blue-500" title="选择下载格式">
-                        <option value="mp3">MP3</option>
-                        <option value="wav">WAV</option>
-                        <option value="ogg">OGG</option>
-                        <option value="m4a">M4A</option>
-                      </select>
-
-                      <!-- 下载按钮 -->
-                      <button id="downloadAudioBtn" class="flex-shrink-0 w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg flex items-center justify-center hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105" title="下载音频文件">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-
-                  <!-- 播放速度控制 -->
-                  <div class="flex items-center justify-between text-xs">
-                    <div class="flex items-center space-x-2">
-                      <span class="text-gray-600">播放速度:</span>
-                      <div class="relative">
-                        <select id="playbackRate" class="appearance-none bg-gradient-to-r from-white to-gray-50 border border-gray-200 rounded-lg px-3 py-1.5 text-xs font-medium text-gray-700 hover:border-blue-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-200 transition-all duration-200 cursor-pointer pr-8">
-                          <option value="0.5">0.5x</option>
-                          <option value="0.75">0.75x</option>
-                          <option value="1" selected>1x</option>
-                          <option value="1.25">1.25x</option>
-                          <option value="1.5">1.5x</option>
-                          <option value="2">2x</option>
-                        </select>
-                        <div class="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
-                          <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
-                          </svg>
-                        </div>
-                      </div>
-                    </div>
-                    <div class="text-gray-500">
-                      <span id="audioInfo"></span>
-                    </div>
-                  </div>
+              <!-- 等待状态 -->
+              <div id="audioPlaceholder" class="text-center py-8">
+                <div class="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r from-blue-100 to-purple-100 rounded-full mb-4">
+                  <svg class="w-8 h-8 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"></path>
+                  </svg>
                 </div>
+                <p class="text-gray-500 mb-2">等待生成语音...</p>
+                <p class="text-sm text-gray-400">生成完成后将显示现代化播放器</p>
               </div>
 
-              <!-- 占位符 -->
-              <div id="audioPlaceholder" class="text-center text-gray-500 py-8">
-                <div class="relative">
-                  <svg class="w-12 h-12 mx-auto mb-3 text-gray-300 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 14.142M9 9a3 3 0 000 6h6a3 3 0 000-6H9z"></path>
-                  </svg>
-                  <div class="absolute inset-0 flex items-center justify-center">
-                    <div class="w-3 h-3 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full animate-ping"></div>
+              <!-- Plyr.js 现代化音频播放器 -->
+              <div id="modernAudioPlayer" class="hidden">
+                <audio id="audioElement" preload="metadata" controls crossorigin playsinline>
+                  <source id="audioSource" src="" type="audio/mpeg">
+                  您的浏览器不支持音频播放。
+                </audio>
+
+                <!-- 播放器控制区域 -->
+                <div class="mt-4 flex flex-col sm:flex-row gap-3 items-center justify-between bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl p-4 border border-blue-100">
+                  <!-- 下载和格式选择 -->
+                  <div class="flex items-center gap-3">
+                    <select id="audioFormat" class="px-3 py-2 text-sm bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500" title="选择下载格式">
+                      <option value="mp3">MP3</option>
+                      <option value="wav">WAV</option>
+                      <option value="ogg">OGG</option>
+                      <option value="m4a">M4A</option>
+                    </select>
+                    <button id="downloadAudioBtn" class="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-green-500 to-emerald-500 text-white rounded-lg hover:from-green-600 hover:to-emerald-600 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105" title="下载音频文件">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                      </svg>
+                      下载
+                    </button>
                   </div>
+
+                  <!-- 音频信息 -->
+                  <div id="audioInfo" class="text-sm text-gray-600"></div>
                 </div>
-                <p class="text-sm font-medium">等待生成语音...</p>
-                <p class="text-xs text-gray-400 mt-1">生成完成后将显示现代化播放器</p>
               </div>
           </div>
 
@@ -1831,275 +1864,144 @@ module.exports = async (req, res) => {
           \`;
         }
 
-        // 现代化音频播放器类
-        class ModernAudioPlayer {
+        // 简化的音频播放器类
+        class SimpleAudioPlayer {
           constructor() {
             this.audio = document.getElementById('audioElement');
-            this.isPlaying = false;
-            this.currentTime = 0;
-            this.duration = 0;
-            this.volume = 1;
-            this.isMuted = false;
+            this.player = null;
             this.currentAudioUrl = null;
-
-            this.howlerSound = null; // Howler.js 实例
-            this.nativeTimeUpdateId = null; // 原生Audio时间更新ID
-
-            this.initializeElements();
-            this.bindEvents();
-            this.initializeAudioEngine();
-          }
-
-          initializeElements() {
-            this.playPauseBtn = document.getElementById('playPauseBtn');
-            this.playIcon = document.getElementById('playIcon');
-            this.pauseIcon = document.getElementById('pauseIcon');
-            this.progressBar = document.getElementById('progressBar');
-            this.progressSlider = document.getElementById('progressSlider');
-            this.currentTimeEl = document.getElementById('currentTime');
-            this.durationEl = document.getElementById('duration');
-            this.muteBtn = document.getElementById('muteBtn');
-            this.volumeIcon = document.getElementById('volumeIcon');
-            this.muteIcon = document.getElementById('muteIcon');
-            this.volumeBar = document.getElementById('volumeBar');
-            this.volumeSlider = document.getElementById('volumeSlider');
+            this.placeholder = document.getElementById('audioPlaceholder');
+            this.modernPlayer = document.getElementById('modernAudioPlayer');
             this.downloadBtn = document.getElementById('downloadAudioBtn');
-            this.audioFormatSelect = document.getElementById('audioFormat');
-            this.playbackRateSelect = document.getElementById('playbackRate');
+            this.audioFormat = document.getElementById('audioFormat');
             this.audioInfo = document.getElementById('audioInfo');
 
-            this.modernPlayer = document.getElementById('modernAudioPlayer');
-            this.placeholder = document.getElementById('audioPlaceholder');
+            this.initializePlyr();
+            this.bindEvents();
+            this.setupResponsiveHandler();
+          }
+
+          initializePlyr() {
+            // 等待 Plyr.js 加载完成
+            const initPlyr = () => {
+              if (typeof Plyr !== 'undefined') {
+                // 检测是否为移动设备
+                const isMobile = window.innerWidth <= 768;
+
+                // 根据设备类型配置控件
+                const controls = isMobile
+                  ? ['play-large', 'play', 'progress', 'current-time', 'duration', 'settings']
+                  : ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings'];
+
+                this.player = new Plyr(this.audio, {
+                  controls: controls,
+                  settings: ['speed'],
+                  speed: { selected: 1, options: [0.5, 0.75, 1, 1.25, 1.5, 2] },
+                  volume: 1,
+                  muted: false,
+                  clickToPlay: true,
+                  hideControls: false,
+                  resetOnEnd: false,
+                  keyboard: { focused: true, global: false }
+                });
+
+                // 监听播放器事件
+                this.player.on('loadeddata', () => {
+                  const duration = this.player.duration;
+                  if (this.audioInfo) {
+                    this.audioInfo.textContent = \`时长: \${this.formatTime(duration)}\`;
+                  }
+                });
+
+                console.log('Plyr.js 播放器初始化成功');
+              } else {
+                console.warn('Plyr.js 未加载，使用原生音频控件');
+                // 如果 Plyr.js 未加载，稍后重试
+                setTimeout(initPlyr, 100);
+              }
+            };
+
+            // 立即尝试初始化，如果失败则等待
+            initPlyr();
           }
 
           bindEvents() {
-            // 播放/暂停
-            this.playPauseBtn.addEventListener('click', () => this.togglePlayPause());
-
-            // 进度控制
-            this.progressSlider.addEventListener('input', (e) => this.seek(e.target.value));
-
-            // 音量控制
-            this.muteBtn.addEventListener('click', () => this.toggleMute());
-            this.volumeSlider.addEventListener('input', (e) => this.setVolume(e.target.value / 100));
-
-            // 播放速度
-            this.playbackRateSelect.addEventListener('change', (e) => this.setPlaybackRate(e.target.value));
-
-            // 下载
-            this.downloadBtn.addEventListener('click', () => this.downloadAudio());
-
-            // 音频事件
-            this.audio.addEventListener('loadedmetadata', () => this.onLoadedMetadata());
-            this.audio.addEventListener('timeupdate', () => this.onTimeUpdate());
-            this.audio.addEventListener('ended', () => this.onEnded());
-            this.audio.addEventListener('play', () => this.onPlay());
-            this.audio.addEventListener('pause', () => this.onPause());
-            this.audio.addEventListener('error', (e) => this.onError(e));
-          }
-
-          initializeAudioEngine() {
-            // 等待音频库加载完成
-            const checkLibraries = () => {
-              if (window.audioLibrariesLoaded) {
-                this.setupAudioEngine();
-              } else {
-                setTimeout(checkLibraries, 100);
-              }
-            };
-            checkLibraries();
-          }
-
-          setupAudioEngine() {
-            // 设置音频引擎
-            console.log('Setting up audio engine...');
-            console.log('Howler available:', typeof Howl !== 'undefined');
-
-            // 优先使用Howler.js
-            if (typeof Howl !== 'undefined') {
-              console.log('Using Howler.js for audio playback');
-              this.audioEngine = 'howler';
-              return;
-            }
-
-            // 备选方案：原生Audio
-            console.log('Using Native Audio for playback');
-            this.audioEngine = 'native';
-          }
-
-
-
-
-
-
-
-
-
-          updateProgress(progress) {
-            this.currentProgress = Math.max(0, Math.min(100, progress));
-
-            // 更新进度条 - 移除过渡效果以获得更平滑的更新
-            if (this.progressBar) {
-              this.progressBar.style.width = this.currentProgress + '%';
-            }
-            if (this.progressSlider) {
-              this.progressSlider.value = this.currentProgress;
-            }
-
-            // 更新时间显示
-            if (this.duration) {
-              const currentTime = (this.currentProgress / 100) * this.duration;
-              this.currentTime = currentTime;
-              if (this.currentTimeEl) {
-                this.currentTimeEl.textContent = this.formatTime(currentTime);
-              }
+            // 下载按钮事件
+            if (this.downloadBtn) {
+              this.downloadBtn.addEventListener('click', () => this.downloadAudio());
             }
           }
 
+          setupResponsiveHandler() {
+            // 监听窗口大小变化，重新配置播放器
+            let resizeTimeout;
+            window.addEventListener('resize', () => {
+              clearTimeout(resizeTimeout);
+              resizeTimeout = setTimeout(() => {
+                if (this.player) {
+                  const isMobile = window.innerWidth <= 768;
+                  const currentControls = this.player.config.controls;
+                  const newControls = isMobile
+                    ? ['play-large', 'play', 'progress', 'current-time', 'duration', 'settings']
+                    : ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings'];
 
+                  // 如果控件配置需要改变，重新初始化播放器
+                  if (JSON.stringify(currentControls) !== JSON.stringify(newControls)) {
+                    const currentSrc = this.audio.src;
+                    const currentTime = this.player.currentTime;
+                    const wasPlaying = !this.player.paused;
+                    const wasPlayerVisible = !this.modernPlayer.classList.contains('hidden');
 
+                    // 销毁当前播放器
+                    this.player.destroy();
+                    this.player = null;
 
+                    // 重新初始化
+                    setTimeout(() => {
+                      this.initializePlyr();
+                      if (currentSrc && wasPlayerVisible) {
+                        // 确保播放器容器可见
+                        this.showPlayer();
 
-          // 音频格式转换方法
-          async convertToMp3(audioBuffer) {
-            // 注意：浏览器原生不支持MP3编码，这里返回WAV格式
-            // 实际的MP3转换需要使用专门的编码库如lamejs
-            notify.warning('MP3转换需要额外的编码库，当前下载为WAV格式');
-            return this.audioBufferToWav(audioBuffer);
-          }
-
-          async convertToOgg(audioBuffer) {
-            // 注意：浏览器原生不支持OGG编码
-            notify.warning('OGG转换需要额外的编码库，当前下载为WAV格式');
-            return this.audioBufferToWav(audioBuffer);
-          }
-
-          async convertToM4a(audioBuffer) {
-            // 注意：浏览器原生不支持M4A编码
-            notify.warning('M4A转换需要额外的编码库，当前下载为WAV格式');
-            return this.audioBufferToWav(audioBuffer);
-          }
-
-          // 将AudioBuffer转换为WAV格式
-          audioBufferToWav(audioBuffer) {
-            const numberOfChannels = audioBuffer.numberOfChannels;
-            const sampleRate = audioBuffer.sampleRate;
-            const length = audioBuffer.length * numberOfChannels * 2;
-
-            const buffer = new ArrayBuffer(44 + length);
-            const view = new DataView(buffer);
-
-            // WAV文件头
-            const writeString = (offset, string) => {
-              for (let i = 0; i < string.length; i++) {
-                view.setUint8(offset + i, string.charCodeAt(i));
-              }
-            };
-
-            writeString(0, 'RIFF');
-            view.setUint32(4, 36 + length, true);
-            writeString(8, 'WAVE');
-            writeString(12, 'fmt ');
-            view.setUint32(16, 16, true);
-            view.setUint16(20, 1, true);
-            view.setUint16(22, numberOfChannels, true);
-            view.setUint32(24, sampleRate, true);
-            view.setUint32(28, sampleRate * numberOfChannels * 2, true);
-            view.setUint16(32, numberOfChannels * 2, true);
-            view.setUint16(34, 16, true);
-            writeString(36, 'data');
-            view.setUint32(40, length, true);
-
-            // 音频数据
-            let offset = 44;
-            for (let i = 0; i < audioBuffer.length; i++) {
-              for (let channel = 0; channel < numberOfChannels; channel++) {
-                const sample = Math.max(-1, Math.min(1, audioBuffer.getChannelData(channel)[i]));
-                view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7FFF, true);
-                offset += 2;
-              }
-            }
-
-            return new Blob([buffer], { type: 'audio/wav' });
+                        // 重新加载音频
+                        setTimeout(() => {
+                          this.loadAudio(currentSrc);
+                          setTimeout(() => {
+                            if (this.player) {
+                              this.player.currentTime = currentTime;
+                              if (wasPlaying) {
+                                this.player.play();
+                              }
+                            }
+                          }, 200);
+                        }, 100);
+                      }
+                    }, 100);
+                  }
+                }
+              }, 300);
+            });
           }
 
           loadAudio(url) {
             this.currentAudioUrl = url;
 
-            if (this.audioEngine === 'howler' && typeof Howl !== 'undefined') {
-              console.log('Loading audio with Howler.js:', url);
-              this.loadWithHowler(url);
-            } else {
-              console.log('Loading audio with Native Audio:', url);
-              // 确保使用原生音频时设置正确的引擎
-              this.audioEngine = 'native';
-              this.loadWithNativeAudio(url);
+            // 设置音频源
+            const audioSource = document.getElementById('audioSource');
+            if (audioSource) {
+              audioSource.src = url;
+            }
+            this.audio.src = url;
+
+            // 如果有 Plyr 播放器，重新加载
+            if (this.player) {
+              this.player.source = {
+                type: 'audio',
+                sources: [{ src: url, type: 'audio/wav' }]
+              };
             }
 
             this.showPlayer();
-          }
-
-          loadWithHowler(url) {
-            // 清理之前的Howler实例
-            if (this.howlerSound) {
-              this.howlerSound.unload();
-            }
-
-            this.howlerSound = new Howl({
-              src: [url],
-              format: ['wav', 'mp3', 'ogg'],
-              onload: () => {
-                this.duration = this.howlerSound.duration();
-                this.durationEl.textContent = this.formatTime(this.duration);
-                this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
-
-
-
-                console.log('Howler audio loaded, duration:', this.duration);
-              },
-              onplay: () => {
-                this.isPlaying = true;
-                this.showPauseIcon();
-                this.startHowlerTimeUpdate();
-              },
-              onpause: () => {
-                this.isPlaying = false;
-                this.showPlayIcon();
-              },
-              onend: () => {
-                this.isPlaying = false;
-                this.showPlayIcon();
-                this.updateProgress(0);
-              },
-              onerror: (id, error) => {
-                console.error('Howler error:', error);
-                notify.error('音频加载失败，请重试');
-
-              }
-            });
-          }
-
-          loadWithNativeAudio(url) {
-            this.audio.src = url;
-
-            this.audio.addEventListener('loadedmetadata', () => {
-              this.duration = this.audio.duration;
-              this.durationEl.textContent = this.formatTime(this.duration);
-              this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
-            }, { once: true });
-
-            this.audio.addEventListener('ended', () => {
-              this.updateProgress(0);
-              this.stopNativeTimeUpdate();
-            });
-
-            this.audio.addEventListener('play', () => {
-              this.startNativeTimeUpdate();
-            });
-
-            this.audio.addEventListener('pause', () => {
-              this.stopNativeTimeUpdate();
-            });
           }
 
           showPlayer() {
@@ -2112,130 +2014,11 @@ module.exports = async (req, res) => {
             this.modernPlayer.classList.add('hidden');
           }
 
-          startHowlerTimeUpdate() {
-            if (!this.howlerSound) return;
-
-            const updateTime = () => {
-              if (this.howlerSound && this.howlerSound.playing()) {
-                this.currentTime = this.howlerSound.seek();
-                this.currentTimeEl.textContent = this.formatTime(this.currentTime);
-
-                if (this.duration > 0) {
-                  const progress = (this.currentTime / this.duration) * 100;
-                  this.updateProgress(progress);
-                }
-
-                requestAnimationFrame(updateTime);
-              }
-            };
-
-            updateTime();
-          }
-
-          startNativeTimeUpdate() {
-            if (this.nativeTimeUpdateId) {
-              cancelAnimationFrame(this.nativeTimeUpdateId);
-            }
-
-            const updateTime = () => {
-              if (!this.audio.paused && !this.audio.ended) {
-                this.currentTime = this.audio.currentTime;
-                this.currentTimeEl.textContent = this.formatTime(this.currentTime);
-
-                if (this.duration > 0) {
-                  const progress = (this.currentTime / this.duration) * 100;
-                  this.updateProgress(progress);
-                }
-
-                this.nativeTimeUpdateId = requestAnimationFrame(updateTime);
-              }
-            };
-
-            updateTime();
-          }
-
-          stopNativeTimeUpdate() {
-            if (this.nativeTimeUpdateId) {
-              cancelAnimationFrame(this.nativeTimeUpdateId);
-              this.nativeTimeUpdateId = null;
-            }
-          }
-
-          togglePlayPause() {
-            if (this.audioEngine === 'howler' && this.howlerSound) {
-              if (this.isPlaying) {
-                this.howlerSound.pause();
-              } else {
-                this.howlerSound.play();
-              }
-            } else {
-              if (this.isPlaying) {
-                this.audio.pause();
-              } else {
-                this.audio.play();
-              }
-            }
-          }
-
-          seek(value) {
-            if (this.audioEngine === 'howler' && this.howlerSound) {
-              const seekTime = (value / 100) * this.duration;
-              this.howlerSound.seek(seekTime);
-              this.currentTime = seekTime;
-              this.currentTimeEl.textContent = this.formatTime(this.currentTime);
-            } else if (this.audio.duration) {
-              this.audio.currentTime = (value / 100) * this.audio.duration;
-            }
-          }
-
-          setVolume(volume) {
-            this.volume = volume;
-
-            if (this.audioEngine === 'howler' && this.howlerSound) {
-              this.howlerSound.volume(volume);
-            } else {
-              this.audio.volume = volume;
-            }
-
-            this.volumeBar.style.width = (volume * 100) + '%';
-
-            if (volume === 0) {
-              this.showMuteIcon();
-            } else {
-              this.showVolumeIcon();
-            }
-          }
-
-          toggleMute() {
-            if (this.isMuted) {
-              if (this.audioEngine === 'howler' && this.howlerSound) {
-                this.howlerSound.volume(this.volume);
-              } else {
-                this.audio.volume = this.volume;
-              }
-              this.volumeBar.style.width = (this.volume * 100) + '%';
-              this.showVolumeIcon();
-              this.isMuted = false;
-            } else {
-              if (this.audioEngine === 'howler' && this.howlerSound) {
-                this.howlerSound.volume(0);
-              } else {
-                this.audio.volume = 0;
-              }
-              this.volumeBar.style.width = '0%';
-              this.showMuteIcon();
-              this.isMuted = true;
-            }
-          }
-
-          setPlaybackRate(rate) {
-            const playbackRate = parseFloat(rate);
-
-            if (this.audioEngine === 'howler' && this.howlerSound) {
-              this.howlerSound.rate(playbackRate);
-            } else {
-              this.audio.playbackRate = playbackRate;
-            }
+          formatTime(seconds) {
+            if (!seconds || isNaN(seconds)) return '0:00';
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return \`\${mins}:\${secs.toString().padStart(2, '0')}\`;
           }
 
           async downloadAudio() {
@@ -2245,141 +2028,22 @@ module.exports = async (req, res) => {
             }
 
             try {
-              const selectedFormat = this.audioFormatSelect.value;
+              const selectedFormat = this.audioFormat ? this.audioFormat.value : 'wav';
               const timestamp = Date.now();
 
-              // 如果选择的格式是原始格式（通常是wav），直接下载
-              if (selectedFormat === 'wav') {
-                const a = document.createElement('a');
-                a.href = this.currentAudioUrl;
-                a.download = \`tts_\${timestamp}.wav\`;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                return;
-              }
-
-              // 对于其他格式，需要进行转换
-              notify.info(\`正在转换为 \${selectedFormat.toUpperCase()} 格式...\`);
-
-              // 获取音频数据
-              const response = await fetch(this.currentAudioUrl);
-              const audioBlob = await response.blob();
-
-              // 创建音频上下文进行格式转换
-              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-              const arrayBuffer = await audioBlob.arrayBuffer();
-              const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
-
-              // 根据选择的格式进行转换
-              let convertedBlob;
-              switch (selectedFormat) {
-                case 'mp3':
-                  convertedBlob = await this.convertToMp3(audioBuffer);
-                  break;
-                case 'ogg':
-                  convertedBlob = await this.convertToOgg(audioBuffer);
-                  break;
-                case 'm4a':
-                  convertedBlob = await this.convertToM4a(audioBuffer);
-                  break;
-                default:
-                  // 如果不支持转换，回退到原始格式
-                  convertedBlob = audioBlob;
-                  selectedFormat = 'wav';
-              }
-
-              // 下载转换后的文件
-              const url = URL.createObjectURL(convertedBlob);
+              // 直接下载 WAV 格式
               const a = document.createElement('a');
-              a.href = url;
+              a.href = this.currentAudioUrl;
               a.download = \`tts_\${timestamp}.\${selectedFormat}\`;
               document.body.appendChild(a);
               a.click();
               document.body.removeChild(a);
-              URL.revokeObjectURL(url);
 
-              notify.success(\`\${selectedFormat.toUpperCase()} 文件下载完成\`);
-
+              notify.success('文件下载完成');
             } catch (error) {
               console.error('下载失败:', error);
               notify.error('下载失败，请重试');
             }
-          }
-
-          formatTime(seconds) {
-            const mins = Math.floor(seconds / 60);
-            const secs = Math.floor(seconds % 60);
-            return \`\${mins}:\${secs.toString().padStart(2, '0')}\`;
-          }
-
-          showPlayIcon() {
-            this.playIcon.classList.remove('hidden');
-            this.pauseIcon.classList.add('hidden');
-          }
-
-          showPauseIcon() {
-            this.playIcon.classList.add('hidden');
-            this.pauseIcon.classList.remove('hidden');
-          }
-
-          showVolumeIcon() {
-            this.volumeIcon.classList.remove('hidden');
-            this.muteIcon.classList.add('hidden');
-          }
-
-          showMuteIcon() {
-            this.volumeIcon.classList.add('hidden');
-            this.muteIcon.classList.remove('hidden');
-          }
-
-          onLoadedMetadata() {
-            this.duration = this.audio.duration;
-            this.durationEl.textContent = this.formatTime(this.duration);
-            this.audioInfo.textContent = \`时长: \${this.formatTime(this.duration)}\`;
-          }
-
-          onTimeUpdate() {
-            // 这个方法现在主要作为备用，主要的时间更新通过requestAnimationFrame处理
-            // 只在requestAnimationFrame不工作时才使用
-            if (this.audioEngine === 'native' && !this.nativeTimeUpdateId) {
-              this.currentTime = this.audio.currentTime;
-              this.currentTimeEl.textContent = this.formatTime(this.currentTime);
-
-              if (this.duration > 0) {
-                const progress = (this.currentTime / this.duration) * 100;
-                this.updateProgress(progress);
-              }
-            }
-          }
-
-          onPlay() {
-            this.isPlaying = true;
-            this.showPauseIcon();
-            if (this.audioEngine === 'native') {
-              this.startNativeTimeUpdate();
-            }
-          }
-
-          onPause() {
-            this.isPlaying = false;
-            this.showPlayIcon();
-            this.stopNativeTimeUpdate();
-          }
-
-          onEnded() {
-            this.isPlaying = false;
-            this.showPlayIcon();
-            this.stopNativeTimeUpdate();
-            this.currentTime = 0;
-            this.progressBar.style.width = '0%';
-            this.progressSlider.value = 0;
-            this.currentTimeEl.textContent = '0:00';
-          }
-
-          onError(e) {
-            console.error('Audio error:', e);
-            notify.error('音频播放出错，请重试');
           }
         }
 
@@ -2674,9 +2338,6 @@ module.exports = async (req, res) => {
             const audioData = this.getAudio(item.audioKey);
             if (audioData) {
               modernPlayer.loadAudio(audioData);
-              setTimeout(() => {
-                modernPlayer.audio.play();
-              }, 100);
 
               // 填充表单
               document.getElementById('text').value = item.text;
@@ -2703,8 +2364,8 @@ module.exports = async (req, res) => {
           }
         }
 
-        // 初始化现代化播放器和历史记录管理器
-        const modernPlayer = new ModernAudioPlayer();
+        // 初始化简化播放器和历史记录管理器
+        const modernPlayer = new SimpleAudioPlayer();
         const ttsHistory = new TTSHistory();
 
 
@@ -2852,8 +2513,14 @@ module.exports = async (req, res) => {
 
             // 播放音频
             modernPlayer.loadAudio(audioUrl);
+
+            // 使用 Plyr 播放器或原生音频播放
             setTimeout(() => {
-              modernPlayer.audio.play();
+              if (modernPlayer.player) {
+                modernPlayer.player.play();
+              } else {
+                modernPlayer.audio.play();
+              }
             }, 100);
 
             // 滚动到音频播放器
@@ -2897,6 +2564,89 @@ module.exports = async (req, res) => {
             document.getElementById('generateBtn').click();
           }
         });
+
+        // 注册 Service Worker
+        if ('serviceWorker' in navigator) {
+          window.addEventListener('load', function() {
+            navigator.serviceWorker.register('/sw.js')
+              .then(function(registration) {
+                console.log('Service Worker 注册成功:', registration.scope);
+
+                // 检查是否有更新
+                registration.addEventListener('updatefound', function() {
+                  console.log('Service Worker 有更新');
+                });
+              })
+              .catch(function(error) {
+                console.log('Service Worker 注册失败:', error);
+              });
+          });
+
+          // 监听 PWA 安装提示
+          let deferredPrompt;
+          window.addEventListener('beforeinstallprompt', function(e) {
+            console.log('PWA 安装提示触发');
+            // 阻止默认的安装提示
+            e.preventDefault();
+            // 保存事件，以便稍后触发
+            deferredPrompt = e;
+
+            // 显示自定义安装按钮（可选）
+            showInstallButton();
+          });
+
+          // 显示安装按钮的函数
+          function showInstallButton() {
+            // 创建安装提示
+            const installBanner = document.createElement('div');
+            installBanner.id = 'install-banner';
+            installBanner.className = 'fixed top-0 left-0 right-0 bg-blue-600 text-white p-3 text-center z-50';
+            installBanner.innerHTML = \`
+              <div class="flex items-center justify-center space-x-4">
+                <span>📱 安装 TTS API 应用到您的设备</span>
+                <button id="install-btn" class="bg-white text-blue-600 px-4 py-1 rounded font-medium hover:bg-gray-100 transition-colors">
+                  安装
+                </button>
+                <button id="dismiss-btn" class="text-white hover:text-gray-200 transition-colors">
+                  ✕
+                </button>
+              </div>
+            \`;
+
+            document.body.appendChild(installBanner);
+
+            // 安装按钮点击事件
+            document.getElementById('install-btn').addEventListener('click', function() {
+              if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then(function(choiceResult) {
+                  if (choiceResult.outcome === 'accepted') {
+                    console.log('用户接受了安装提示');
+                  } else {
+                    console.log('用户拒绝了安装提示');
+                  }
+                  deferredPrompt = null;
+                  document.getElementById('install-banner').remove();
+                });
+              }
+            });
+
+            // 关闭按钮点击事件
+            document.getElementById('dismiss-btn').addEventListener('click', function() {
+              document.getElementById('install-banner').remove();
+            });
+          }
+
+          // 监听应用安装完成
+          window.addEventListener('appinstalled', function(e) {
+            console.log('PWA 安装完成');
+            // 移除安装横幅
+            const banner = document.getElementById('install-banner');
+            if (banner) {
+              banner.remove();
+            }
+          });
+        }
       </script>
     </body>
   </html>`;

@@ -1,0 +1,80 @@
+<svg width="512" height="512" viewBox="0 0 512 512" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="mainGradient512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#667eea;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#764ba2;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f093fb;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="waveGradient512" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#f093fb;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f5576c;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow512" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="rgba(0,0,0,0.3)"/>
+    </filter>
+    <filter id="glow512" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge> 
+        <feMergeNode in="coloredBlur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  
+  <!-- 背景圆形 -->
+  <circle cx="256" cy="256" r="240" fill="url(#mainGradient512)" filter="url(#shadow512)" stroke="white" stroke-width="8"/>
+  
+  <!-- 内部装饰圆环 -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="rgba(255,255,255,0.2)" stroke-width="2"/>
+  <circle cx="256" cy="256" r="160" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+  
+  <!-- 麦克风主体 -->
+  <rect x="216" y="160" width="80" height="160" rx="40" fill="white" filter="url(#shadow512)"/>
+  
+  <!-- 麦克风网格线 -->
+  <line x1="236" y1="190" x2="276" y2="190" stroke="url(#mainGradient512)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="236" y1="210" x2="276" y2="210" stroke="url(#mainGradient512)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="236" y1="230" x2="276" y2="230" stroke="url(#mainGradient512)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="236" y1="250" x2="276" y2="250" stroke="url(#mainGradient512)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="236" y1="270" x2="276" y2="270" stroke="url(#mainGradient512)" stroke-width="3" stroke-linecap="round"/>
+  <line x1="236" y1="290" x2="276" y2="290" stroke="url(#mainGradient512)" stroke-width="3" stroke-linecap="round"/>
+  
+  <!-- 麦克风支架 -->
+  <path d="M 256 320 L 256 380" stroke="white" stroke-width="8" stroke-linecap="round" filter="url(#shadow512)"/>
+  <path d="M 200 380 L 312 380" stroke="white" stroke-width="8" stroke-linecap="round" filter="url(#shadow512)"/>
+  
+  <!-- 麦克风底座 -->
+  <ellipse cx="256" cy="385" rx="60" ry="15" fill="rgba(255,255,255,0.8)" filter="url(#shadow512)"/>
+  
+  <!-- 左侧音频波形 -->
+  <path d="M 80 256 L 100 220 L 120 290 L 140 180 L 160 320 L 180 200" 
+        stroke="url(#waveGradient512)" stroke-width="6" stroke-linecap="round" 
+        stroke-linejoin="round" fill="none" filter="url(#glow512)"/>
+  
+  <!-- 右侧音频波形 -->
+  <path d="M 432 256 L 412 220 L 392 290 L 372 180 L 352 320 L 332 200" 
+        stroke="url(#waveGradient512)" stroke-width="6" stroke-linecap="round" 
+        stroke-linejoin="round" fill="none" filter="url(#glow512)"/>
+  
+  <!-- 声音传播圆弧 - 左侧 -->
+  <path d="M 190 200 Q 150 256 190 312" stroke="white" stroke-width="4" fill="none" opacity="0.8" stroke-linecap="round"/>
+  <path d="M 170 180 Q 120 256 170 332" stroke="white" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"/>
+  <path d="M 150 160 Q 90 256 150 352" stroke="white" stroke-width="2" fill="none" opacity="0.4" stroke-linecap="round"/>
+  
+  <!-- 声音传播圆弧 - 右侧 -->
+  <path d="M 322 200 Q 362 256 322 312" stroke="white" stroke-width="4" fill="none" opacity="0.8" stroke-linecap="round"/>
+  <path d="M 342 180 Q 392 256 342 332" stroke="white" stroke-width="3" fill="none" opacity="0.6" stroke-linecap="round"/>
+  <path d="M 362 160 Q 422 256 362 352" stroke="white" stroke-width="2" fill="none" opacity="0.4" stroke-linecap="round"/>
+  
+  <!-- 装饰性音符 -->
+  <circle cx="120" cy="150" r="8" fill="url(#waveGradient512)" opacity="0.8"/>
+  <circle cx="140" cy="130" r="6" fill="url(#waveGradient512)" opacity="0.6"/>
+  <circle cx="160" cy="110" r="4" fill="url(#waveGradient512)" opacity="0.4"/>
+  
+  <circle cx="392" cy="150" r="8" fill="url(#waveGradient512)" opacity="0.8"/>
+  <circle cx="372" cy="130" r="6" fill="url(#waveGradient512)" opacity="0.6"/>
+  <circle cx="352" cy="110" r="4" fill="url(#waveGradient512)" opacity="0.4"/>
+  
+  <!-- 中央高光 -->
+  <ellipse cx="240" cy="200" rx="15" ry="30" fill="rgba(255,255,255,0.3)" opacity="0.8"/>
+</svg>
