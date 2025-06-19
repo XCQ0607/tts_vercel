@@ -938,6 +938,8 @@ module.exports = async (req, res) => {
           color: rgba(255, 255, 255, 0.9);
         }
 
+        /* 让 Plyr.js 使用默认进度条样式，只调整颜色 */
+
         /* 修复设置菜单显示问题 */
         .plyr__menu {
           z-index: 1000 !important;
@@ -1062,6 +1064,8 @@ module.exports = async (req, res) => {
           .plyr__control[aria-expanded="true"] {
             background: rgba(255, 255, 255, 0.3) !important;
           }
+
+          /* 移动端使用默认进度条样式 */
         }
 
         /* 确保菜单在所有容器之上 */
@@ -1088,14 +1092,7 @@ module.exports = async (req, res) => {
             padding: 10px 12px !important;
           }
 
-          /* 确保进度条在小屏幕上有足够的触摸区域 */
-          .plyr__progress {
-            height: 8px !important;
-          }
-
-          .plyr__progress input[type="range"] {
-            height: 20px !important;
-          }
+          /* 超小屏幕使用默认样式 */
         }
 
         /* 简化的样式 */
@@ -1879,6 +1876,7 @@ module.exports = async (req, res) => {
             this.initializePlyr();
             this.bindEvents();
             this.setupResponsiveHandler();
+            this.setupPlayerHealthCheck();
           }
 
           initializePlyr() {
@@ -1902,7 +1900,14 @@ module.exports = async (req, res) => {
                   clickToPlay: true,
                   hideControls: false,
                   resetOnEnd: false,
-                  keyboard: { focused: true, global: false }
+                  keyboard: { focused: true, global: false },
+                  // 移动端优化配置
+                  tooltips: { controls: false, seek: true },
+                  captions: { active: false, language: 'auto', update: false },
+                  fullscreen: { enabled: false },
+                  ratio: null,
+                  invertTime: false,
+                  toggleInvert: false
                 });
 
                 // 监听播放器事件
@@ -1912,6 +1917,8 @@ module.exports = async (req, res) => {
                     this.audioInfo.textContent = \`时长: \${this.formatTime(duration)}\`;
                   }
                 });
+
+                // 播放器准备就绪
 
                 console.log('Plyr.js 播放器初始化成功');
               } else {
@@ -1933,54 +1940,88 @@ module.exports = async (req, res) => {
           }
 
           setupResponsiveHandler() {
-            // 监听窗口大小变化，重新配置播放器
+            // 简化的响应式处理 - 不重新初始化播放器，只确保可见性
             let resizeTimeout;
+            let lastCheck = Date.now();
+
+            const ensurePlayerVisibility = () => {
+              // 如果有音频但播放器被隐藏，强制显示
+              if (this.currentAudioUrl && this.modernPlayer.classList.contains('hidden')) {
+                console.log('强制显示播放器');
+                this.showPlayer();
+              }
+
+              // 如果播放器实例丢失但有音频，重新初始化
+              if (this.currentAudioUrl && !this.player) {
+                console.log('播放器实例丢失，重新初始化');
+                this.initializePlyr();
+                setTimeout(() => {
+                  if (this.player && this.currentAudioUrl) {
+                    this.player.source = {
+                      type: 'audio',
+                      sources: [{ src: this.currentAudioUrl, type: 'audio/wav' }]
+                    };
+                  }
+                }, 100);
+              }
+            };
+
             window.addEventListener('resize', () => {
               clearTimeout(resizeTimeout);
               resizeTimeout = setTimeout(() => {
-                if (this.player) {
-                  const isMobile = window.innerWidth <= 768;
-                  const currentControls = this.player.config.controls;
-                  const newControls = isMobile
-                    ? ['play-large', 'play', 'progress', 'current-time', 'duration', 'settings']
-                    : ['play-large', 'play', 'progress', 'current-time', 'duration', 'mute', 'volume', 'settings'];
-
-                  // 如果控件配置需要改变，重新初始化播放器
-                  if (JSON.stringify(currentControls) !== JSON.stringify(newControls)) {
-                    const currentSrc = this.audio.src;
-                    const currentTime = this.player.currentTime;
-                    const wasPlaying = !this.player.paused;
-                    const wasPlayerVisible = !this.modernPlayer.classList.contains('hidden');
-
-                    // 销毁当前播放器
-                    this.player.destroy();
-                    this.player = null;
-
-                    // 重新初始化
-                    setTimeout(() => {
-                      this.initializePlyr();
-                      if (currentSrc && wasPlayerVisible) {
-                        // 确保播放器容器可见
-                        this.showPlayer();
-
-                        // 重新加载音频
-                        setTimeout(() => {
-                          this.loadAudio(currentSrc);
-                          setTimeout(() => {
-                            if (this.player) {
-                              this.player.currentTime = currentTime;
-                              if (wasPlaying) {
-                                this.player.play();
-                              }
-                            }
-                          }, 200);
-                        }, 100);
-                      }
-                    }, 100);
-                  }
+                const now = Date.now();
+                // 防止过于频繁的检查
+                if (now - lastCheck < 1000) {
+                  return;
                 }
+                lastCheck = now;
+
+                console.log('窗口大小变化，检查播放器状态');
+                ensurePlayerVisibility();
               }, 300);
             });
+
+            // 监听窗口焦点变化（全屏切换时会触发）
+            window.addEventListener('focus', () => {
+              setTimeout(() => {
+                console.log('窗口获得焦点，检查播放器状态');
+                ensurePlayerVisibility();
+              }, 100);
+            });
+
+            // 监听页面可见性变化
+            document.addEventListener('visibilitychange', () => {
+              if (!document.hidden) {
+                setTimeout(() => {
+                  console.log('页面变为可见，检查播放器状态');
+                  ensurePlayerVisibility();
+                }, 100);
+              }
+            });
+          }
+
+          setupPlayerHealthCheck() {
+            // 定期检查播放器状态，确保在有音频时播放器是可见的
+            setInterval(() => {
+              if (this.currentAudioUrl && this.modernPlayer.classList.contains('hidden')) {
+                console.warn('检测到播放器异常隐藏，尝试恢复显示');
+                this.showPlayer();
+
+                // 如果播放器实例也丢失了，重新初始化
+                if (!this.player) {
+                  console.warn('播放器实例丢失，重新初始化');
+                  this.initializePlyr();
+                  setTimeout(() => {
+                    if (this.player && this.currentAudioUrl) {
+                      this.player.source = {
+                        type: 'audio',
+                        sources: [{ src: this.currentAudioUrl, type: 'audio/wav' }]
+                      };
+                    }
+                  }, 100);
+                }
+              }
+            }, 2000); // 每2秒检查一次
           }
 
           loadAudio(url) {
@@ -1999,6 +2040,18 @@ module.exports = async (req, res) => {
                 type: 'audio',
                 sources: [{ src: url, type: 'audio/wav' }]
               };
+            } else {
+              // 如果播放器不存在，尝试重新初始化
+              console.warn('播放器不存在，尝试重新初始化');
+              this.initializePlyr();
+              setTimeout(() => {
+                if (this.player) {
+                  this.player.source = {
+                    type: 'audio',
+                    sources: [{ src: url, type: 'audio/wav' }]
+                  };
+                }
+              }, 100);
             }
 
             this.showPlayer();
@@ -2020,6 +2073,8 @@ module.exports = async (req, res) => {
             const secs = Math.floor(seconds % 60);
             return \`\${mins}:\${secs.toString().padStart(2, '0')}\`;
           }
+
+
 
           async downloadAudio() {
             if (!this.currentAudioUrl) {
